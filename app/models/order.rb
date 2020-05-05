@@ -1,10 +1,12 @@
 class Order < ActiveRecord::Base
     belongs_to :client
-    has_many :inventories, through: :apparels
-    has_many :apparels
+    has_many :product_orders
+    has_many :products, through: :product_orders
+    has_many :product_types, through: :products
 
-    
 
+
+   
 
 end
 
