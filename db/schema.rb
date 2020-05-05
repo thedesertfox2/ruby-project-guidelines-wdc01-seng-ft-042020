@@ -13,7 +13,7 @@
 ActiveRecord::Schema.define(version: 20200505162457) do
 
   create_table "apparels", force: :cascade do |t|
-    t.integer "client_id"
+    t.integer "order_id"
     t.integer "inventory_id"
   end
 
