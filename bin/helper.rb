@@ -19,10 +19,10 @@ def get_cost
     puts "How much does it cost?"
     cost = gets.chomp
     if cost.to_f > 0
-        return cost
+        return cost.to_f
     else
         puts "Please enter a valid quantity"
-        get_cost.to_f
+        get_cost
     end
 end
 
@@ -30,10 +30,10 @@ def get_quantity
     puts "How many would you like to add?"
     quantity = gets.chomp
     if quantity.to_i > 0
-        return quantity
+        return quantity.to_i
     else
         puts "Please enter a valid quantity"
-        get_quantity.to_i
+        get_quantity
     end
 end
 
@@ -90,38 +90,45 @@ end
 def shopping_menu(order)
     input = ''
     while input != 'main menu'
-    puts "Enter a command"
-    input = gets.chomp
-    case input
-    when "list products"
-        arr = Product.all.map do |product|
-            product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
-        end
-        puts arr.uniq
-    when /order /
-        if get_inventory(input[6..-1]).length > 0
-            ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(input[6..-1]).pop)
-        else
-            puts "Sorry, we're out of stock or you entered a non-existent product."
-        end
-    when "checkout"
-        total = 0
-        order.product_orders.sum {|productorder| total += productorder.product.cost}
-        total
-        puts "Your current order total is $#{total}. Would you like to proceed with the checkout Y/N?"
-        decision = gets.chomp
-        if decision == "Y" || decision == "y"
-            order.update(status: "complete")
-            puts "Your order is now complete with a total of $#{total}."
+        puts "Enter a command"
+        input = gets.chomp
+        case input
+        when "list products"
+            arr = Product.all.map do |product|
+                product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
+            end
+            puts arr.uniq
+        when /order /
+            if get_inventory(input[6..-1]).length > 0
+                ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(input[6..-1]).pop)
+            else
+                puts "Sorry, we're out of stock or you entered a non-existent product."
+            end
+        when "remove"
+            hash = {}
+            order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
+            pp hash
+            puts "Please enter the product you'd like to remove by id"
+            product_order_id = gets.chomp
+            return_item(product_order_id, hash)
             input = 'main menu'
-        elsif decision == "N" || decision == "n"
-            order.update(status: "pending")
-            puts "Okay, check out later then."
-            input = 'main menu'
-        end
+        when "checkout"
+            total = 0
+            order.product_orders.sum {|productorder| total += productorder.product.cost}
+            total
+            puts "Your current order total is $#{total}. Would you like to proceed with the checkout Y/N?"
+            decision = gets.chomp
+            if decision == "Y" || decision == "y"
+                order.update(status: "complete")
+                puts "Your order is now complete with a total of $#{total}."
+                input = 'main menu'
+            elsif decision == "N" || decision == "n"
+                puts "Okay, check out later then."
+                input = 'main menu'
+            end
 
+        end
     end
-end
 end
 
 def user_logged_in(user)
@@ -138,26 +145,31 @@ def user_logged_in(user)
                 end
                 pp hash
                 shopping_menu(pending_order(hash))
+            when "complete orders"
+                order_arr = user.orders.where(status: "complete")
+                hash = {}
+                order_arr.each do |order| 
+                    hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+                end
+                pp hash
+                puts "Enter the order id you'd like to view"
+                order_id = gets.chomp
+                return_item(Order.find(order_id))
             when "new order"
-                shopping_menu(Order.create(client_id: user.id, status: "new"))
+                shopping_menu(Order.create(client_id: user.id, status: "pending"))
             when "order history"
-                new_order_hash = {}
+                
                 pending_order_hash = {}
                 complete_order_hash = {}
-                new_orders = user.orders.select {|order| order.status == 'new'}
+                
                 pending_orders = user.orders.select {|order| order.status == 'pending'}
                 complete_orders = user.orders.select {|order| order.status == 'complete'}
-                new_orders.each do |order| 
-                    new_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-                end
                 pending_orders.each do |order| 
                     pending_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
                 end
                 complete_orders.each do |order| 
                     complete_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
                 end
-                puts "New Orders"
-                pp new_order_hash
                 puts "Pending Orders"
                 pp pending_order_hash
                 puts "Complete Orders"
@@ -166,10 +178,30 @@ def user_logged_in(user)
     end
 end
 
+def remove_item(product_order_id, hash, order)
+    if product_order_id.to_i > 0
+        if hash[product_order_id.to_i]
+            ProductOrder.delete(product_order_id.to_i)
+            puts 'That item was removed/returned from your order.'
+        end
+    else
+        puts "Please enter a valid id number"
+        return_item(order)
+    end
+end
 
 def get_inventory(name)
     arr1 = ProductOrder.all.map {|productorder| productorder.product_id }
-    arr2 = Product.all.select {|product| product.name.downcase == name.downcase}
+    arr2 = Product.all.select {|product| product.name.downcase.rstrip == name.downcase.rstrip}
     arr2 = arr2.map {|product| product.id}
     arr2 - arr1
+end
+
+def return_item(order)
+    hash = {}
+    order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
+    pp hash
+    puts "Please enter the product you'd like to remove by id"
+    product_order_id = gets.chomp
+    remove_item(product_order_id, hash, order)
 end
