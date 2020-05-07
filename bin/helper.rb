@@ -40,7 +40,7 @@ def admin_logged_in(user)
     command = ''
     while command != 'exit'
         puts "What would you like to do?"
-        puts ["see inventory", "add stock"]
+        puts ["see inventory", "add {item category}"]
         command = gets.chomp
         case command
             when "see inventory"
@@ -48,27 +48,18 @@ def admin_logged_in(user)
                     product.name + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
                 end
                 puts arr.uniq
-            when "add stock"
-                puts "Which item would you like to add?"
-                puts ["add ..."]
-                command = ''
-                command = gets.chomp
-                case command
-                    when /add /
-                        product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
-                        puts "What is the name of the item?"
-                        name = gets.chomp
-                       
-                        quantity = get_quantity
-                        cost = get_cost
-                        quantity.times do
-                        Product.create(name: name, cost: cost, product_type_id: product_ty)
-                        end
-                            
-                    else
-                        puts "Sorry that was not a valid command"
-        
-                end
+            when /add /
+                product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
+                puts "What is the name of the item?"
+                name = gets.chomp
+                quantity = get_quantity
+                cost = get_cost
+                quantity.times do
+                    Product.create(name: name, cost: cost, product_type_id: product_ty)
+                end      
+            else
+                puts "Sorry that was not a valid command"
+                
         end
     end
                 
@@ -109,9 +100,9 @@ def shopping_menu(order, user)
             end
             puts arr.uniq
         when /order /
-            if get_inventory(input[6..-1]).length > 0
-                new_order = ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(input[6..-1]).pop)
-                puts "You placed an order of #{new_order.name}"
+            if get_inventory(command[6..-1]).length > 0
+                new_order = ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(command[6..-1]).pop)
+                puts "You placed an order for #{new_order.name}"
             else
                 puts "Sorry, we're out of stock or you entered a non-existent product."
             end
@@ -171,7 +162,7 @@ def user_logged_in(user)
                     end
                     return_item(Order.find(order_id))
                 when "new order"
-                    shopping_menu(Order.create(client_id: user.id, status: "pending"), command, user)
+                    shopping_menu(Order.create(client_id: user.id, status: "pending"), user)
                 when "order history"
                     
                     pending_order_hash = {}
