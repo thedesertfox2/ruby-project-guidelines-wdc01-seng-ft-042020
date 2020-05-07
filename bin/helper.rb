@@ -12,7 +12,6 @@ def user_name
     else
         return user
     end
-
 end
 
 def get_cost
@@ -41,6 +40,7 @@ def admin_logged_in(user)
     command = ''
     while command != 'exit'
         puts "What would you like to do?"
+        puts ["see inventory", "add stock"]
         command = gets.chomp
         case command
             when "see inventory"
@@ -50,11 +50,12 @@ def admin_logged_in(user)
                 puts arr.uniq
             when "add stock"
                 puts "Which item would you like to add?"
-                input = ''
-                input = gets.chomp
-                case input 
+                puts ["add ..."]
+                command = ''
+                command = gets.chomp
+                case command
                     when /add /
-                        product_ty = ProductType.find_or_create_by(name: input[4..-1]).id
+                        product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
                         puts "What is the name of the item?"
                         name = gets.chomp
                        
@@ -74,25 +75,34 @@ def admin_logged_in(user)
 
 end
 
-def pending_order(hash)
+def pending_order(hash, user)
     puts "Which order would you like to resume? Enter an id number"
-    input = gets.chomp
-    if input.to_i > 0
-        if hash[input.to_i]
-            Order.find(input.to_i)
-        end
+    command = gets.chomp
+    if command == 'back'
+        return user_logged_in(user)
     else
-        puts "That was invalid.  Please input order number again."
-        pending_order
-    end
+        if command.to_i > 0
+            if hash[command.to_i]
+                Order.find(command.to_i)
+            else
+                puts "That was invalid.  Please input order number again."
+                pending_order(hash, user)
+            end
+        else
+            puts "That was invalid.  Please input order number again."
+            pending_order(hash, user)
+        end
+
+    end 
 end
 
-def shopping_menu(order)
-    input = ''
-    while input != 'main menu'
+def shopping_menu(order, user)
+    command = ''
+    while command != 'back'
         puts "Enter a command"
-        input = gets.chomp
-        case input
+        pp ["list products", "order ...", "remove", "checkout", "back"]
+        command = gets.chomp
+        case command
         when "list products"
             arr = Product.all.map do |product|
                 product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
@@ -100,7 +110,8 @@ def shopping_menu(order)
             puts arr.uniq
         when /order /
             if get_inventory(input[6..-1]).length > 0
-                ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(input[6..-1]).pop)
+                new_order = ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(input[6..-1]).pop)
+                puts "You placed an order of #{new_order.name}"
             else
                 puts "Sorry, we're out of stock or you entered a non-existent product."
             end
@@ -110,7 +121,7 @@ def shopping_menu(order)
             pp hash
             puts "Please enter the product you'd like to remove by id"
             product_order_id = gets.chomp
-            return_item(product_order_id, hash)
+            remove_item(product_order_id, hash, order)
             input = 'main menu'
         when "checkout"
             total = 0
@@ -134,47 +145,52 @@ end
 def user_logged_in(user)
     command = ''
     while command != 'exit'
-        puts "What would you like to do?"
+        puts "What would you like to do? Enter one of the following commands."
+        pp ["pending orders", "complete orders", "new order", "order history", "exit"]
         command = gets.chomp
-        case command
-            when "pending orders"
-                order_arr = user.orders.where(status: "pending")
-                hash = {}
-                order_arr.each do |order| 
-                    hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-                end
-                pp hash
-                shopping_menu(pending_order(hash))
-            when "complete orders"
-                order_arr = user.orders.where(status: "complete")
-                hash = {}
-                order_arr.each do |order| 
-                    hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-                end
-                pp hash
-                puts "Enter the order id you'd like to view"
-                order_id = gets.chomp
-                return_item(Order.find(order_id))
-            when "new order"
-                shopping_menu(Order.create(client_id: user.id, status: "pending"))
-            when "order history"
-                
-                pending_order_hash = {}
-                complete_order_hash = {}
-                
-                pending_orders = user.orders.select {|order| order.status == 'pending'}
-                complete_orders = user.orders.select {|order| order.status == 'complete'}
-                pending_orders.each do |order| 
-                    pending_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-                end
-                complete_orders.each do |order| 
-                    complete_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-                end
-                puts "Pending Orders"
-                pp pending_order_hash
-                puts "Complete Orders"
-                pp complete_order_hash
-        end
+            case command
+                when "pending orders"
+                    order_arr = user.orders.where(status: "pending")
+                    hash = {}
+                    order_arr.each do |order| 
+                        hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+                    end
+                    pp hash
+                    shopping_menu(pending_order(hash, user), user)
+                when "complete orders"
+                    order_arr = user.orders.where(status: "complete")
+                    hash = {}
+                    order_arr.each do |order| 
+                        hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+                    end
+                    pp hash
+                    puts "Enter the order id you'd like to view"
+                    order_id = gets.chomp
+                    if order_id == 'back'
+                        return user_logged_in(user)
+                    end
+                    return_item(Order.find(order_id))
+                when "new order"
+                    shopping_menu(Order.create(client_id: user.id, status: "pending"), command, user)
+                when "order history"
+                    
+                    pending_order_hash = {}
+                    complete_order_hash = {}
+                    
+                    pending_orders = user.orders.select {|order| order.status == 'pending'}
+                    complete_orders = user.orders.select {|order| order.status == 'complete'}
+                    pending_orders.each do |order| 
+                        pending_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+                    end
+                    complete_orders.each do |order| 
+                        complete_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+                    end
+                    puts "Pending Orders"
+                    pp pending_order_hash
+                    puts "Complete Orders"
+                    pp complete_order_hash
+                   
+            end
     end
 end
 
