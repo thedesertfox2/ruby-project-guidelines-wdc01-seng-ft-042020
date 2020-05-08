@@ -67,7 +67,7 @@ def admin_logged_in(user)
 end
 
 def pending_order(hash, user)
-    puts "Which order would you like to resume? Enter an id number"
+    puts "Which order would you like to resume? Enter an id number."
     command = gets.chomp
     if command == 'back'
         return user_logged_in(user)
@@ -83,7 +83,6 @@ def pending_order(hash, user)
             puts "That was invalid.  Please input order number again."
             pending_order(hash, user)
         end
-
     end 
 end
 
@@ -181,7 +180,7 @@ def user_logged_in(user)
                     pp pending_order_hash
                     puts "Complete Orders"
                     pp complete_order_hash
-                   
+                
             end
     end
 end
@@ -213,3 +212,4 @@ def return_item(order)
     product_order_id = gets.chomp
     remove_item(product_order_id, hash, order)
 end
+
