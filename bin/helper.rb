@@ -35,6 +35,20 @@ class CLI
 
 ################################## User Logged In Functions ##############################
 
+    def pending_order_menu_logic
+        order_arr = self.user.orders.where(status: "pending")
+        hash = {}
+        order_arr.each do |order| 
+            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+        end
+        pp hash
+        order = self.pending_order(hash)
+        if order != nil
+            self.order = order
+            self.shopping_menu
+        end
+    end
+
     def pending_order(hash)
         puts "Which order would you like to resume? Enter an id number."
         command = gets.chomp
@@ -55,6 +69,64 @@ class CLI
         end 
     end
 
+    def complete_order_menu_logic
+        order_arr = self.user.orders.where(status: "complete")
+        hash = {}
+        order_arr.each do |order| 
+            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+        end
+        pp hash
+        puts "Enter the order id you'd like to view"
+        order_id = gets.chomp
+        if order_id == 'back'
+            return
+        elsif order_id.to_i > 0
+            self.order = Order.find(order_id)
+            self.return_item
+        else
+            puts "invalid"
+            self.complete_order_menu_logic
+        end
+        
+    end
+
+    def remove_item(product_order_id, hash)
+        if product_order_id.to_i > 0
+            if hash[product_order_id.to_i]
+                ProductOrder.delete(product_order_id.to_i)
+                puts 'That item was removed/returned from your order.'
+            end
+        else
+            puts "Please enter a valid id number"
+            self.return_item
+        end
+    end
+
+    def new_order_menu_logic
+        self.order = Order.create(client_id: self.user.id, status: "pending")
+        self.shopping_menu
+    end
+
+    # def order_history_menu_logic
+    #     pending_order_hash = {}
+    #     complete_order_hash = {}
+        
+    #     pending_orders = self.user.orders.select {|order| order.status == 'pending'}
+    #     complete_orders = self.user.orders.select {|order| order.status == 'complete'}
+    #     pending_orders.each do |order| 
+    #         pending_order_hash[self.order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+    #     end
+    #     complete_orders.each do |order| 
+    #         complete_order_hash[self.order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+    #     end
+    #     puts "Pending Orders"
+    #     pending_order_hash
+    #     puts "Complete Orders"
+    #     complete_order_hash
+    # end
+
+################################## Shopping Menu ############################################
+    
     def shopping_menu
         command = ''
         while command != 'back'
@@ -97,77 +169,6 @@ class CLI
                 end
 
             end
-        end
-    end
-
-    def pending_order_menu_logic
-        order_arr = self.user.orders.where(status: "pending")
-        hash = {}
-        order_arr.each do |order| 
-            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-        end
-        pp hash
-        order = self.pending_order(hash)
-        if order != nil
-            self.order = order
-            self.shopping_menu
-        end
-    end
-
-    def complete_order_menu_logic
-        order_arr = self.user.orders.where(status: "complete")
-        hash = {}
-        order_arr.each do |order| 
-            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-        end
-        pp hash
-        puts "Enter the order id you'd like to view"
-        order_id = gets.chomp
-        if order_id == 'back'
-            return
-        elsif order_id.to_i > 0
-            self.order = Order.find(order_id)
-            self.return_item
-        else
-            puts "invalid"
-            self.complete_order_menu_logic
-        end
-        
-    end
-
-    def new_order_menu_logic
-        self.order = Order.create(client_id: self.user.id, status: "pending")
-        self.shopping_menu
-    end
-
-    def order_history_menu_logic
-        pending_order_hash = {}
-        complete_order_hash = {}
-        
-        pending_orders = self.user.orders.select {|order| order.status == 'pending'}
-        complete_orders = self.user.orders.select {|order| order.status == 'complete'}
-        pending_orders.each do |order| 
-            pending_order_hash[self.order.id] = self.order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-        end
-        complete_orders.each do |order| 
-            complete_order_hash[self.order.id] = self.order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-        end
-        puts "Pending Orders"
-        self.pending_order_hash
-        puts "Complete Orders"
-        self.complete_order_hash
-    end
-
-
-    def remove_item(product_order_id, hash)
-        if product_order_id.to_i > 0
-            if hash[product_order_id.to_i]
-                ProductOrder.delete(product_order_id.to_i)
-                puts 'That item was removed/returned from your order.'
-            end
-        else
-            puts "Please enter a valid id number"
-            self.return_item
         end
     end
 
