@@ -10,15 +10,17 @@ def run
     cli_instance = CLI.new(user)
     if user.name.downcase == 'admin'
         puts "\n"
+        puts "Welcome #{user.name}.\n".colorize(:cyan)
         admin_logged_in(cli_instance)
     else
         puts "\n"
+        puts "Welcome #{user.name}.\n".colorize(:cyan)
         user_logged_in(cli_instance)
     end
 end
 
 def welcome
-    puts "Welcome to our Shopping Database.\n".colorize(:cyan)
+    puts "Welcome to our Socks, Pencils, and other things store.  We will sell you anything, just ask.\n".colorize(:cyan)
     sleep 1
 end
 

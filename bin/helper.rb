@@ -15,18 +15,21 @@ class CLI
     def see_inventory
         puts 
         arr = Product.all.map do |product|
-            product.name + " - cost: " + product.cost.to_s + " - stock: " + self.get_inventory(product.name).count.to_s
+            product.name + " - cost: " + product.cost.to_s + " - stock: " + ProductOrder.get_inventory(product.name).count.to_s
         end
         puts arr.uniq
         puts "\n\n"
     end
 
-    def add_item
-        
-        product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
+    def exit_menu(string)
+        string == 'back' || string == 'exit'
+    end
+
+    def add_item 
+        product_type = ProductType.find_or_create_by(name: command[4..-1]).id
         puts "What is the brand name of the item?\n\n".colorize(:cyan)
         name = gets.chomp
-        if name == 'back' || name == 'exit'
+        if self.exit_menu(name)
             return
         end
         quantity = self.get_quantity
@@ -38,7 +41,7 @@ class CLI
             return 
         end
         quantity.times do
-            Product.create(name: name, cost: cost, product_type_id: product_ty)
+            Product.create(name: name, cost: cost, product_type_id: product_type)
         end
         puts "We added #{quantity} of #{name} to your stock with a cost of $#{cost} per unit. \n\n".colorize(:cyan)      
     end
@@ -46,7 +49,7 @@ class CLI
     def get_cost
         puts "How much does it cost?\n\n".colorize(:cyan)
         cost = gets.chomp
-        if cost == 'back' || cost == 'exit'
+        if self.exit_menu(cost)
             return
         elsif cost.to_f > 0
             return cost.to_f
@@ -59,7 +62,7 @@ class CLI
     def get_quantity
         puts "How many would you like to add?\n\n".colorize(:cyan)
         quantity = gets.chomp
-        if quantity == 'back' || quantity == 'exit'
+        if self.exit_menu(quantity)
             return
         elsif quantity.to_i > 0
             return quantity.to_i
@@ -72,24 +75,25 @@ class CLI
 ################################## User Logged In Functions ##############################
 
     def pending_order_menu_logic
-        order_arr = self.user.orders.where(status: "pending")
-        hash = {}
-        order_arr.each do |order| 
-            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-        end
-        pp hash
-        order = self.pending_order(hash)
-        if order != nil
-            self.order = order
-            self.shopping_menu
+        pending_order_hash = self.user.generate_pending_orders
+        pending_order_hash = self.delete_empty_order(pending_order_hash)
+        pp pending_order_hash
+        if pending_order_hash
+            order = self.select_pending_order(pending_order_hash)
+            if order != nil
+                self.order = order
+                self.shopping_menu
+            end
+        else
+            puts "You have no pending orders."
         end
     end
 
-    def pending_order(hash)
+    def select_pending_order(hash)
         puts "Which order would you like to resume? Enter an id number. \n\n"
         command = gets.chomp 
         puts "\n"
-        if command == 'back'
+        if self.exit_menu(command)
             return
         else
             if command.to_i > 0
@@ -97,25 +101,31 @@ class CLI
                     Order.find(command.to_i)
                 else
                     puts "That was invalid.  Please input order number again."
-                    self.pending_order(hash)
+                    self.select_pending_order(hash)
                 end
             else
                 puts "That was invalid.  Please input order number again."
-                self.pending_order(hash)
+                self.select_pending_order(hash)
             end
         end 
     end
 
+    def delete_empty_order(hash)
+        empty_orders = hash.select {|k, v| v.empty?}
+        empty_orders.each {|k, v| Order.delete(k)}
+        hash.select {|k, v| v.length > 0}
+    end
+
     def complete_order_menu_logic
         order_arr = self.user.orders.where(status: "complete")
-        hash = {}
+        order_hash = {}
         order_arr.each do |order| 
-            hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+            order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
         end
-        pp hash
+        pp order_hash
         puts "Enter the order id you'd like to view"
         order_id = gets.chomp
-        if order_id == 'back'
+        if self.exit_menu(order_id)
             return
         elsif order_id.to_i > 0
             self.order = Order.find(order_id)
@@ -147,7 +157,6 @@ class CLI
     def order_history_menu_logic
         pending_order_hash = {}
         complete_order_hash = {}
-        
         pending_orders = self.user.orders.select {|order| order.status == 'pending'}
         complete_orders = self.user.orders.select {|order| order.status == 'complete'}
         pending_orders.each do |order| 
@@ -163,7 +172,56 @@ class CLI
     end
 
 ################################## Shopping Menu ############################################
+
+    def list_products
+        puts "\n"
+        product_arr = Product.all.map do |product|
+            product.name + " - cost: $" + product.cost.to_s + " - stock: " + ProductOrder.get_inventory(product.name).count.to_s
+        end
+        puts product_arr.uniq
+        sleep 2
+    end
+
+    def order_product(command)
+        puts "\n"
+        if ProductOrder.get_inventory(command[6..-1]).length > 0
+            new_order = ProductOrder.find_or_create_by(order_id: self.order.id, product_id: ProductOrder.get_inventory(command[6..-1]).pop)
+            puts "You placed an order for #{new_order.product.name}"
+        else
+            puts "Sorry, we're out of stock or you entered a non-existent product."
+        end
+        sleep 2
+    end
     
+    def remove_from_cart
+        puts "\n"
+        product_order_hash = {}
+        self.order.product_orders.map {|productorder| product_order_hash[productorder.id] = productorder.product.name}
+        pp product_order_hash
+        puts "Please enter the product you'd like to remove by id"
+        product_order_id = gets.chomp
+        puts "\n"
+        self.remove_item(product_order_id, product_order_hash)
+        sleep 2
+    end
+    
+    def checkout
+        puts "\n"
+        total_price = 0
+        self.order.product_orders.sum {|productorder| total_price += productorder.product.cost}
+        total_price
+        puts "Your current order total is $#{total_price}. Would you like to proceed with the checkout Y/N?"
+        decision = gets.chomp
+        puts "\n"
+        if decision == "Y" || decision == "y"
+            self.order.update(status: "complete")
+            puts "Your order is now complete with a total of $#{total_price}." 
+        elsif decision == "N" || decision == "n"
+            puts "Okay, check out later then."
+        end
+        sleep 2
+    end
+
     def shopping_menu
         command = ''
         while command != 'back'
@@ -172,71 +230,29 @@ class CLI
             command = gets.chomp
             case command
             when "list products"
-                puts '\n'
-                arr = Product.all.map do |product|
-                    product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
-                end
-                puts arr.uniq
-                sleep 2
+                self.list_products
             when /order /
-                puts 'n'
-                if get_inventory(command[6..-1]).length > 0
-                    new_order = ProductOrder.find_or_create_by(order_id: self.order.id, product_id: get_inventory(command[6..-1]).pop)
-                    puts "You placed an order for #{new_order.product.name}"
-                else
-                    puts "Sorry, we're out of stock or you entered a non-existent product."
-                end
-                sleep 2
+                self.order_product(command)
             when "remove"
-                puts 'n'
-                hash = {}
-                self.order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
-                pp hash
-                puts "Please enter the product you'd like to remove by id"
-                product_order_id = gets.chomp
-                puts 'n'
-                remove_item(product_order_id, hash)
-                puts "That product has been removed from your cart."
-                sleep 2
+                self.remove_from_cart
             when "checkout"
-                puts 'n'
-                total = 0
-                self.order.product_orders.sum {|productorder| total += productorder.product.cost}
-                total
-                puts "Your current order total is $#{total}. Would you like to proceed with the checkout Y/N?"
-                decision = gets.chomp
-                puts 'n'
-                if decision == "Y" || decision == "y"
-                    self.order.update(status: "complete")
-                    puts "Your order is now complete with a total of $#{total}."
-                    command = 'back'
-                elsif decision == "N" || decision == "n"
-                    puts "Okay, check out later then."
-                end
-                sleep 2
-
+                self.checkout
+                command = 'back'
             end
         end
     end
 
-    def get_inventory(name)
-        arr1 = ProductOrder.all.map {|productorder| productorder.product_id }
-        arr2 = Product.all.select {|product| product.name.downcase.rstrip == name.downcase.rstrip}
-        arr2 = arr2.map {|product| product.id}
-        arr2 - arr1
-    end
-
     def return_item
-        hash = {}
-        self.order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
-        pp hash
+        product_order_hash = {}
+        self.order.product_orders.map {|productorder| product_order_hash[productorder.id] = productorder.product.name}
+        pp product_order_hash
         puts "Please enter the product you'd like to remove by id".colorize(:cyan)
         product_order_id = gets.chomp
-        puts 'n'
-        if product_order_id == 'back' 
+        puts "\n"
+        if self.exit_menu(product_order_id)
             return
         end
         sleep 2
-        self.remove_item(product_order_id, hash)
+        self.remove_item(product_order_id, product_order_hash)
     end
 end
