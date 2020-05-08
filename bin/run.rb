@@ -35,7 +35,7 @@ end
 def user_logged_in(cli_instance)
     command = ''
     while command != 'exit'
-        puts "What would you like to do? Enter one of the following commands."
+        puts "What would you like to do? Enter one of the following commands.".colorize(:cyan)
         pp ["pending orders", "complete orders", "new order", "order history", "exit"]
         command = gets.chomp
             case command
@@ -59,7 +59,7 @@ end
 def admin_logged_in(cli_instance)
     command = ''
     while command != 'exit'
-        puts "What would you like to do?"
+        puts "What would you like to do?".colorize(:cyan)
         pp ["see inventory", "add {item category}"]
         command = gets.chomp
         case command

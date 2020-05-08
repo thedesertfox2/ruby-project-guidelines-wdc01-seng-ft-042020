@@ -24,7 +24,7 @@ class CLI
     def add_item
         
         product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
-        puts "What is the brand name of the item?\n\n"
+        puts "What is the brand name of the item?\n\n".colorize(:cyan)
         name = gets.chomp
         if name == 'back' || name == 'exit'
             return
@@ -40,31 +40,31 @@ class CLI
         quantity.times do
             Product.create(name: name, cost: cost, product_type_id: product_ty)
         end
-        puts "We added #{quantity} of #{name} to your stock with a cost of $#{cost} per unit. \n\n"      
+        puts "We added #{quantity} of #{name} to your stock with a cost of $#{cost} per unit. \n\n".colorize(:cyan)      
     end
 
     def get_cost
-        puts "How much does it cost?\n\n"
+        puts "How much does it cost?\n\n".colorize(:cyan)
         cost = gets.chomp
         if cost == 'back' || cost == 'exit'
             return
         elsif cost.to_f > 0
             return cost.to_f
         else
-            puts "Please enter a valid quantity \n\n"
+            puts "Please enter a valid quantity \n\n".colorize(:cyan)
             self.get_cost
         end
     end
 
     def get_quantity
-        puts "How many would you like to add?\n\n"
+        puts "How many would you like to add?\n\n".colorize(:cyan)
         quantity = gets.chomp
         if quantity == 'back' || quantity == 'exit'
             return
         elsif quantity.to_i > 0
             return quantity.to_i
         else
-            puts "Please enter a valid quantity\n\n"
+            puts "Please enter a valid quantity\n\n".colorize(:cyan)
             self.get_quantity
         end
     end
@@ -88,6 +88,7 @@ class CLI
     def pending_order(hash)
         puts "Which order would you like to resume? Enter an id number. \n\n"
         command = gets.chomp 
+        puts "\n"
         if command == 'back'
             return
         else
@@ -171,12 +172,14 @@ class CLI
             command = gets.chomp
             case command
             when "list products"
+                puts '\n'
                 arr = Product.all.map do |product|
                     product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
                 end
                 puts arr.uniq
                 sleep 2
             when /order /
+                puts 'n'
                 if get_inventory(command[6..-1]).length > 0
                     new_order = ProductOrder.find_or_create_by(order_id: self.order.id, product_id: get_inventory(command[6..-1]).pop)
                     puts "You placed an order for #{new_order.product.name}"
@@ -185,20 +188,24 @@ class CLI
                 end
                 sleep 2
             when "remove"
+                puts 'n'
                 hash = {}
                 self.order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
                 pp hash
                 puts "Please enter the product you'd like to remove by id"
                 product_order_id = gets.chomp
+                puts 'n'
                 remove_item(product_order_id, hash)
                 puts "That product has been removed from your cart."
                 sleep 2
             when "checkout"
+                puts 'n'
                 total = 0
                 self.order.product_orders.sum {|productorder| total += productorder.product.cost}
                 total
                 puts "Your current order total is $#{total}. Would you like to proceed with the checkout Y/N?"
                 decision = gets.chomp
+                puts 'n'
                 if decision == "Y" || decision == "y"
                     self.order.update(status: "complete")
                     puts "Your order is now complete with a total of $#{total}."
@@ -217,19 +224,19 @@ class CLI
         arr2 = Product.all.select {|product| product.name.downcase.rstrip == name.downcase.rstrip}
         arr2 = arr2.map {|product| product.id}
         arr2 - arr1
-        sleep 2
     end
 
     def return_item
         hash = {}
         self.order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
         pp hash
-        puts "Please enter the product you'd like to remove by id"
+        puts "Please enter the product you'd like to remove by id".colorize(:cyan)
         product_order_id = gets.chomp
+        puts 'n'
         if product_order_id == 'back' 
             return
         end
-        self.remove_item(product_order_id, hash)
         sleep 2
+        self.remove_item(product_order_id, hash)
     end
 end
