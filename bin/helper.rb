@@ -102,7 +102,7 @@ def shopping_menu(order, user)
         when /order /
             if get_inventory(command[6..-1]).length > 0
                 new_order = ProductOrder.find_or_create_by(order_id: order.id, product_id: get_inventory(command[6..-1]).pop)
-                puts "You placed an order for #{new_order.name}"
+                puts "You placed an order for #{new_order.product.name}"
             else
                 puts "Sorry, we're out of stock or you entered a non-existent product."
             end
@@ -113,7 +113,8 @@ def shopping_menu(order, user)
             puts "Please enter the product you'd like to remove by id"
             product_order_id = gets.chomp
             remove_item(product_order_id, hash, order)
-            input = 'main menu'
+            puts "That product has been removed from your cart."
+            command = 'back'
         when "checkout"
             total = 0
             order.product_orders.sum {|productorder| total += productorder.product.cost}
@@ -123,10 +124,10 @@ def shopping_menu(order, user)
             if decision == "Y" || decision == "y"
                 order.update(status: "complete")
                 puts "Your order is now complete with a total of $#{total}."
-                input = 'main menu'
+                command = 'back'
             elsif decision == "N" || decision == "n"
                 puts "Okay, check out later then."
-                input = 'main menu'
+                command = 'back'
             end
 
         end
