@@ -15,7 +15,7 @@ class CLI
     def see_inventory
         puts 
         arr = Product.all.map do |product|
-            product.name + " - cost: " + product.cost.to_s + " - stock: " + ProductOrder.get_inventory(product.name).count.to_s
+            product.name + " - cost: $" + product.cost.to_s + " - stock: " + ProductOrder.get_inventory(product.name).count.to_s
         end
         puts arr.uniq
         puts "\n\n"
@@ -78,7 +78,7 @@ class CLI
         pending_order_hash = self.user.generate_pending_orders
         pending_order_hash = self.delete_empty_order(pending_order_hash)
         pp pending_order_hash
-        if pending_order_hash
+        if pending_order_hash.length > 0
             order = self.select_pending_order(pending_order_hash)
             if order != nil
                 self.order = order
@@ -129,7 +129,7 @@ class CLI
             return
         elsif order_id.to_i > 0
             self.order = Order.find(order_id)
-            self.return_item
+            self.return_item(self.order.id)
         else
             puts "invalid"
             self.complete_order_menu_logic
@@ -137,15 +137,16 @@ class CLI
         
     end
 
-    def remove_item(product_order_id, hash)
+    def remove_item(product_order_id, hash, order_id)
         if product_order_id.to_i > 0
             if hash[product_order_id.to_i]
                 ProductOrder.delete(product_order_id.to_i)
+                self.order = Order.find(order_id)
                 puts 'That item was removed/returned from your order.'
             end
         else
             puts "Please enter a valid id number"
-            self.return_item
+            self.return_item(order_id)
         end
     end
 
@@ -193,15 +194,19 @@ class CLI
         sleep 2
     end
     
-    def remove_from_cart
+    def remove_from_cart(order_id)
         puts "\n"
         product_order_hash = {}
+        self.order = Order.find(order_id)
         self.order.product_orders.map {|productorder| product_order_hash[productorder.id] = productorder.product.name}
         pp product_order_hash
         puts "Please enter the product you'd like to remove by id"
         product_order_id = gets.chomp
+        if exit_menu(product_order_id)
+            return
+        end
         puts "\n"
-        self.remove_item(product_order_id, product_order_hash)
+        self.remove_item(product_order_id, product_order_hash, order_id)
         sleep 2
     end
     
@@ -215,7 +220,8 @@ class CLI
         puts "\n"
         if decision == "Y" || decision == "y"
             self.order.update(status: "complete")
-            puts "Your order is now complete with a total of $#{total_price}." 
+            puts "Your order is now complete with a total of $#{total_price}."
+            return 1
         elsif decision == "N" || decision == "n"
             puts "Okay, check out later then."
         end
@@ -234,15 +240,16 @@ class CLI
             when /order /
                 self.order_product(command)
             when "remove"
-                self.remove_from_cart
+                self.remove_from_cart(self.order.id)
             when "checkout"
-                self.checkout
-                command = 'back'
+                if self.checkout == 1
+                    command = 'back'
+                end
             end
         end
     end
 
-    def return_item
+    def return_item(order_id)
         product_order_hash = {}
         self.order.product_orders.map {|productorder| product_order_hash[productorder.id] = productorder.product.name}
         pp product_order_hash
@@ -253,6 +260,6 @@ class CLI
             return
         end
         sleep 2
-        self.remove_item(product_order_id, product_order_hash)
+        self.remove_item(product_order_id, product_order_hash, product_order_id)
     end
 end
