@@ -1,4 +1,6 @@
 require_relative '../config/environment'
+
+
 class CLI
 
     attr_accessor :user, :command, :order
@@ -10,26 +12,60 @@ class CLI
     end
 
 #################################AdminFunctions##########################################
+    def see_inventory
+        puts 
+        arr = Product.all.map do |product|
+            product.name + " - cost: " + product.cost.to_s + " - stock: " + self.get_inventory(product.name).count.to_s
+        end
+        puts arr.uniq
+        puts "\n\n"
+    end
+
+    def add_item
+        
+        product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
+        puts "What is the brand name of the item?\n\n"
+        name = gets.chomp
+        if name == 'back' || name == 'exit'
+            return
+        end
+        quantity = self.get_quantity
+        if quantity == nil
+            return
+        end
+        cost = self.get_cost
+        if cost == nil
+            return 
+        end
+        quantity.times do
+            Product.create(name: name, cost: cost, product_type_id: product_ty)
+        end
+        puts "We added #{quantity} of #{name} to your stock with a cost of $#{cost} per unit. \n\n"      
+    end
 
     def get_cost
-        puts "How much does it cost?"
+        puts "How much does it cost?\n\n"
         cost = gets.chomp
-        if cost.to_f > 0
+        if cost == 'back' || cost == 'exit'
+            return
+        elsif cost.to_f > 0
             return cost.to_f
         else
-            puts "Please enter a valid quantity"
-            get_cost
+            puts "Please enter a valid quantity \n\n"
+            self.get_cost
         end
     end
 
     def get_quantity
-        puts "How many would you like to add?"
+        puts "How many would you like to add?\n\n"
         quantity = gets.chomp
-        if quantity.to_i > 0
+        if quantity == 'back' || quantity == 'exit'
+            return
+        elsif quantity.to_i > 0
             return quantity.to_i
         else
-            puts "Please enter a valid quantity"
-            get_quantity
+            puts "Please enter a valid quantity\n\n"
+            self.get_quantity
         end
     end
 
@@ -50,8 +86,8 @@ class CLI
     end
 
     def pending_order(hash)
-        puts "Which order would you like to resume? Enter an id number."
-        command = gets.chomp
+        puts "Which order would you like to resume? Enter an id number. \n\n"
+        command = gets.chomp 
         if command == 'back'
             return
         else
@@ -107,30 +143,30 @@ class CLI
         self.shopping_menu
     end
 
-    # def order_history_menu_logic
-    #     pending_order_hash = {}
-    #     complete_order_hash = {}
+    def order_history_menu_logic
+        pending_order_hash = {}
+        complete_order_hash = {}
         
-    #     pending_orders = self.user.orders.select {|order| order.status == 'pending'}
-    #     complete_orders = self.user.orders.select {|order| order.status == 'complete'}
-    #     pending_orders.each do |order| 
-    #         pending_order_hash[self.order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-    #     end
-    #     complete_orders.each do |order| 
-    #         complete_order_hash[self.order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
-    #     end
-    #     puts "Pending Orders"
-    #     pending_order_hash
-    #     puts "Complete Orders"
-    #     complete_order_hash
-    # end
+        pending_orders = self.user.orders.select {|order| order.status == 'pending'}
+        complete_orders = self.user.orders.select {|order| order.status == 'complete'}
+        pending_orders.each do |order| 
+            pending_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+        end
+        complete_orders.each do |order| 
+            complete_order_hash[order.id] = order.products.map {|product| product.name + ", cost: $" + product.cost.to_s}
+        end
+        puts "Pending Orders"
+        pp pending_order_hash
+        puts "Complete Orders"
+        pp complete_order_hash
+    end
 
 ################################## Shopping Menu ############################################
     
     def shopping_menu
         command = ''
         while command != 'back'
-            puts "Enter a command"
+            puts "Enter a command".colorize(:cyan)
             pp ["list products", "order ...", "remove", "checkout", "back"]
             command = gets.chomp
             case command
@@ -139,6 +175,7 @@ class CLI
                     product.name + " - cost: $" + product.cost.to_s + " - stock: " + get_inventory(product.name).count.to_s
                 end
                 puts arr.uniq
+                sleep 2
             when /order /
                 if get_inventory(command[6..-1]).length > 0
                     new_order = ProductOrder.find_or_create_by(order_id: self.order.id, product_id: get_inventory(command[6..-1]).pop)
@@ -146,6 +183,7 @@ class CLI
                 else
                     puts "Sorry, we're out of stock or you entered a non-existent product."
                 end
+                sleep 2
             when "remove"
                 hash = {}
                 self.order.product_orders.map {|productorder| hash[productorder.id] = productorder.product.name}
@@ -154,6 +192,7 @@ class CLI
                 product_order_id = gets.chomp
                 remove_item(product_order_id, hash)
                 puts "That product has been removed from your cart."
+                sleep 2
             when "checkout"
                 total = 0
                 self.order.product_orders.sum {|productorder| total += productorder.product.cost}
@@ -167,6 +206,7 @@ class CLI
                 elsif decision == "N" || decision == "n"
                     puts "Okay, check out later then."
                 end
+                sleep 2
 
             end
         end
@@ -177,6 +217,7 @@ class CLI
         arr2 = Product.all.select {|product| product.name.downcase.rstrip == name.downcase.rstrip}
         arr2 = arr2.map {|product| product.id}
         arr2 - arr1
+        sleep 2
     end
 
     def return_item
@@ -189,5 +230,6 @@ class CLI
             return
         end
         self.remove_item(product_order_id, hash)
+        sleep 2
     end
 end

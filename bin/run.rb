@@ -2,23 +2,28 @@ require_relative '../config/environment'
 require_relative './helper.rb'
 require 'pry'
 
+
+
 def run
     welcome
     user = Client.find_or_create_by(name: user_name)
     cli_instance = CLI.new(user)
     if user.name.downcase == 'admin'
+        puts "\n"
         admin_logged_in(cli_instance)
     else
+        puts "\n"
         user_logged_in(cli_instance)
     end
 end
 
 def welcome
-    puts "Welcome to our Shopping Database."
+    puts "Welcome to our Shopping Database.\n".colorize(:cyan)
+    sleep 1
 end
 
 def user_name
-    puts "What is your name?"
+    puts "What is your name?\n".colorize(:cyan)
     user = gets.chomp
     if user.empty?
         user_name
@@ -36,12 +41,16 @@ def user_logged_in(cli_instance)
             case command
                 when "pending orders"
                     cli_instance.pending_order_menu_logic
+                    sleep 2
                 when "complete orders"
                     cli_instance.complete_order_menu_logic
+                    sleep 2
                 when "new order"
                     cli_instance.new_order_menu_logic
+                    sleep 2
                 when "order history"
                     cli_instance.order_history_menu_logic
+                    sleep 2
                 
             end
     end
@@ -51,23 +60,13 @@ def admin_logged_in(cli_instance)
     command = ''
     while command != 'exit'
         puts "What would you like to do?"
-        puts ["see inventory", "add {item category}"]
+        pp ["see inventory", "add {item category}"]
         command = gets.chomp
         case command
             when "see inventory"
-                arr = Product.all.map do |product|
-                    product.name + product.cost.to_s + " - stock: " + cli_instance.get_inventory(product.name).count.to_s
-                end
-                puts arr.uniq
+                cli_instance.see_inventory
             when /add /
-                product_ty = ProductType.find_or_create_by(name: command[4..-1]).id
-                puts "What is the name of the item?"
-                name = gets.chomp
-                quantity = cli_instance.get_quantity
-                cost = cli_instance.get_cost
-                quantity.times do
-                    Product.create(name: name, cost: cost, product_type_id: product_ty)
-                end      
+                cli_instance.add_item
             
                 
         end
